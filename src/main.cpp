@@ -3,7 +3,8 @@
 #include "utils.h"
 
 static constexpr uint16_t CFG_TICK = 16;
-static constexpr uint8_t CFG_READ_COUNT = 5;
+static constexpr uint8_t CFG_READ_COUNT = 8;
+static constexpr uint8_t CFG_RUN_COUNT = 2;
 static constexpr uint16_t CFG_MIN_DELAY = 50;
 static constexpr uint16_t CFG_MAX_DELAY = 1000;
 static constexpr uint16_t CFG_MIN_VOLTAGE = 10000;
@@ -20,6 +21,7 @@ Control led(PIN_LED);
 static constexpr uint32_t adc_coefficient = GetCoefficient(5000, 51000, 10000, 1024);
 volatile bool is_interrupt = false;
 uint8_t read_count = 0;
+uint8_t run_count = 0;
 uint32_t time;
 
 
@@ -39,36 +41,21 @@ uint16_t GetInVoltage()
 uint16_t GetPotValue()
 {
 	uint16_t adc = analogRead(PIN_POT_ADC);
+	if(adc < 64) adc = 256;
 	
 	return (adc / 2);
 	//return map(adc, (uint16_t)0, (uint16_t)1023, CFG_MIN_DELAY, CFG_MAX_DELAY);
 }
 
 
-/*
-bool go_run = false;
-bool state = LOW;
-static uint8_t run_count_total = 3;
-uint8_t run_count = 0;
-uint16_t run_delay = 0;
-void Run()
+void ResetRun()
 {
-	if(go_run == false) return;
-	
-	digitalWrite(PIN_LOAD_EN, state);
-	uint16_t val = GetPotValue();
-	run_delay = (state == HIGH) ? val : val/2;
-	state = !state;
-	
-	if(++run_count == run_count_total)
-	{
-		go_run = false;
-		run_count = 0;
-	}
+	is_interrupt = false;
+	read_count = 0;
+	run_count = 0;
 
 	return;
 }
-*/
 
 void setup()
 {
@@ -103,21 +90,25 @@ void loop()
 			{
 				if(++read_count == CFG_READ_COUNT)
 				{
-					is_interrupt = false;
-					read_count = 0;
+					if(++run_count == CFG_RUN_COUNT)
+					{
+						ResetRun();
+					}
 					
 					uint16_t timeout = GetPotValue();
-					load.On(timeout);
-					led.On(timeout);
 					
-					// Это уменьшает размер кода O_O
-					//delay(1);
+					load.On();
+					led.On();
+					delay(timeout);
+					load.Off();
+					led.Off();
+
+					read_count = 0;
 				}
 			}
 			else
 			{
-				is_interrupt = false;
-				read_count = 0;
+				ResetRun();
 			}
 		}
 	}
