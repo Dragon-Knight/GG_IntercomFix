@@ -32,7 +32,7 @@ bool GetInState()
 // Получить напряжение питания (до диода) в мВ
 uint16_t GetInVoltage()
 {
-	return (analogRead(PIN_VRAW_ADC) * adc_coefficient);
+	return (uint16_t)(analogRead(PIN_VRAW_ADC) * adc_coefficient);
 }
 
 // Получить значение потанциометра от 0 до 511
@@ -44,6 +44,31 @@ uint16_t GetPotValue()
 	//return map(adc, (uint16_t)0, (uint16_t)1023, CFG_MIN_DELAY, CFG_MAX_DELAY);
 }
 
+
+/*
+bool go_run = false;
+bool state = LOW;
+static uint8_t run_count_total = 3;
+uint8_t run_count = 0;
+uint16_t run_delay = 0;
+void Run()
+{
+	if(go_run == false) return;
+	
+	digitalWrite(PIN_LOAD_EN, state);
+	uint16_t val = GetPotValue();
+	run_delay = (state == HIGH) ? val : val/2;
+	state = !state;
+	
+	if(++run_count == run_count_total)
+	{
+		go_run = false;
+		run_count = 0;
+	}
+
+	return;
+}
+*/
 
 void setup()
 {
@@ -67,11 +92,11 @@ void loop()
 	led.Processing(time);
 	
 	static uint32_t last_tick = 0;
-	time = millis();
+	//time = millis();
 	if(time - last_tick > CFG_TICK)
 	{
 		last_tick = time;
-
+		
 		if(is_interrupt == true && load.Get() == LOW)
 		{
 			if(GetInVoltage() >= CFG_MIN_VOLTAGE && GetInState() == true)
@@ -81,9 +106,12 @@ void loop()
 					is_interrupt = false;
 					read_count = 0;
 					
-					uint16_t delay = GetPotValue();
-					load.On(1000);
-					//led.On(delay);
+					uint16_t timeout = GetPotValue();
+					load.On(timeout);
+					led.On(timeout);
+					
+					// Это уменьшает размер кода O_O
+					//delay(1);
 				}
 			}
 			else
@@ -92,9 +120,6 @@ void loop()
 				read_count = 0;
 			}
 		}
-
-		led.On();
-		led.Off();
 	}
 	
 	return;
